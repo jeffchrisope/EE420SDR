@@ -10,6 +10,11 @@ import scan_state as state
 
 np.set_printoptions(threshold=np.nan)
 
+_tracep = True
+
+def tprint(msg):
+    if _tracep:
+        print msg
 
 
 class mac_packetizer(gr.basic_block):
@@ -36,11 +41,11 @@ class mac_packetizer(gr.basic_block):
         noutput_items = len(out)
         nmin_items = min(ninput_items, noutput_items)
 
-        # print "Input/Output Items:  {}/{}".format(ninput_items, noutput_items)
+        print "Input/Output Items:  {}/{}".format(ninput_items, noutput_items)
 
         # First, make sure the buffer has enough bits to be able to process
         if ninput_items < self.bits_needed:
-            # print "Not enough bits for current state ({}), waiting for next buffer fill.".format(self.bits_needed)
+            print "Not enough bits for current state ({}), waiting for next buffer fill.".format(self.bits_needed)
             self.consume_each(int(0))
             return 0
 
@@ -53,14 +58,14 @@ class mac_packetizer(gr.basic_block):
 
             # if a lousy match, reset the buffers to try again
             if amax_val < (proto.SYNCLEN_BITS - proto.SYNC_TOLERANCE):
-                # print "Barker correlation insufficient, resetting buffer."
+                print "Barker correlation insufficient, resetting buffer."
                 self.consume_each(int(ninput_items))
                 return 0
 
             # Good match - do we have room?
             # TODO:  maybe have another interim state that allows us to avoid scanning for the Barker again
             if nmin_items < (amax + self.bits_needed):
-                # print "Barker found, but need more data - filling buffer."
+                print "Barker found, but need more data - filling buffer."
                 self.consume_each(int(amax - 1))
                 return 0
 
@@ -69,9 +74,9 @@ class mac_packetizer(gr.basic_block):
             preamble_bytes = np.packbits(preamble_bit_array)
             poss_preamble = chr(preamble_bytes[0]) + chr(preamble_bytes[1])
             if poss_preamble not in proto.PREAMBLES:
-                # print "Invalid preamble ({}), dumping data.".format(poss_preamble)
+                print "Invalid preamble ({}), dumping data.".format(poss_preamble)
                 nitems_read = amax + proto.SYNCLEN_BITS + proto.PREAMBLELEN_BITS
-                # print nitems_read
+                print nitems_read
                 self.consume_each(int(nitems_read))
                 return 0
 
@@ -84,12 +89,12 @@ class mac_packetizer(gr.basic_block):
             self.state = state.Bundling
             self.bits_needed = self.currmsg_datasz_bytes * 8
 
-            # print "Message with preamble {}, data len {}, found ... loading buffer.".format(self.currmsg_preamble, self.currmsg_datasz_bytes)
+            print "Message with preamble {}, data len {}, found ... loading buffer.".format(self.currmsg_preamble, self.currmsg_datasz_bytes)
 
             # Consume the packet header and return
             nitems_read = int(amax + proto.SYNCLEN_BITS + proto.PREAMBLELEN_BITS + proto.DATASZLEN_BITS)
-            # print type(nitems_read)
-            # print "Consuming {} items (bits) ...".format(nitems_read)
+            print type(nitems_read)
+            print "Consuming {} items (bits) ...".format(nitems_read)
             self.consume_each(int(nitems_read))
             return 0
 
@@ -97,7 +102,7 @@ class mac_packetizer(gr.basic_block):
             # Once we get here, the buffer should have enough data
             msgdata_bits = in0[0 : self.currmsg_datasz_bytes * 8]
             msgdata_bytes = np.packbits(msgdata_bits)
-            # print ">>>>>>>>>>>>>>Rcvd data: {}".format(msgdata_bytes)
+            print ">>>>>>>>>>>>>>Rcvd data: {}".format(msgdata_bytes)
 
             # Now, pass the data on, as BYTES NOT BITS
             out[0] = ord(self.currmsg_preamble[0])
@@ -114,11 +119,11 @@ class mac_packetizer(gr.basic_block):
 
             self.consume_each(int(self.currmsg_datasz_bytes * 8))
             nitems_written = proto.PKTHDRLEN_BYTES + self.currmsg_datasz_bytes - 2
-            # print "Writing {} bytes ...".format(nitems_written)
+            print "Writing {} bytes ...".format(nitems_written)
             return int(nitems_written)
 
         else:
-            # print "In a bizarre state ... resetting buffer and outputting nothing."
+            print "In a bizarre state ... resetting buffer and outputting nothing."
             self.consume_each(int(ninput_items))
             return 0
 

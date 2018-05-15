@@ -33,8 +33,8 @@ class top_block(gr.top_block):
         ##################################################
         self.freq = freq
         self.samp_rate = 1e6
-        self.rxgain = 0
-        self.txgain = 0
+        self.rxgain = -10
+        self.txgain = -10
 
         ##################################################
         # Blocks
@@ -187,7 +187,7 @@ class tdd_mac(object):
         if self.state == mac.Beacon:
             if payload[0:2] == proto.MAC_PREAMBLE:
                 otherid = ord(payload[3])
-                if otherid > MAC_ID:
+                if otherid > id.MAC_ID:
                     print "MAC control:  ceding TX to higher MAC ID ({}), entering RX mode ...".format(otherid)
                     self.state = mac.Normal_RX
                 else:
