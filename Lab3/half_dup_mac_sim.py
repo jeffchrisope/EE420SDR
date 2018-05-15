@@ -16,7 +16,6 @@ from optparse import OptionParser
 
 from mac_packetizer import *
 import jk_macproto as proto
-import ID
 
 DATA = "Hello World123\n"
 

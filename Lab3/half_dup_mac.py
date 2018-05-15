@@ -175,6 +175,7 @@ class tdd_mac(object):
         self.tb = None
         self.pktcnt = 0
         self.state = mac.Beacon
+        print "Entering MAC beacon mode ..."
 
     def set_top_block(self, tb):
         self.tb = tb
@@ -187,10 +188,10 @@ class tdd_mac(object):
             if payload[0:2] == proto.MAC_PREAMBLE:
                 otherid = ord(payload[3])
                 if otherid > MAC_ID:
-                    print "MAC control:  ceding TX to higher MAC ID ({})".format(otherid)
+                    print "MAC control:  ceding TX to higher MAC ID ({}), entering RX mode ...".format(otherid)
                     self.state = mac.Normal_RX
                 else:
-                    print "MAC control:  taking TX from lower MAC ID"
+                    print "MAC control:  taking TX from lower MAC ID ({}), entering TX mode ...".format(otherid)
                     self.state = mac.Normal_TX
 
 
