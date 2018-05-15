@@ -175,7 +175,7 @@ class tdd_mac(object):
         self.tb = None
         self.pktcnt = 0
         self.state = mac.Beacon
-        print "Entering MAC beacon mode ..."
+        print "Entering MAC beacon mode as ID {} ...".format(id.MAC_ID)
 
     def set_top_block(self, tb):
         self.tb = tb
