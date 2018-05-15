@@ -18,10 +18,10 @@ from optparse import OptionParser
 from mac_packetizer import *
 import jk_macproto as proto
 import mac_state as mac
+import IDs as id
 
 DATA = "Hello World123\n"
-MAC_ID = 65
-MAC_ID_STR = chr(MAC_ID)
+MAC_ID_STR = chr(id.MAC_ID)
 
 class top_block(gr.top_block):
 

@@ -14,13 +14,12 @@ import gnuradio.gr.gr_threading as _threading
 
 from optparse import OptionParser
 
-import string_to_list
-from frame_sync import frame_sync
 from mac_packetizer import *
 import jk_macproto as proto
+import ID
 
 DATA = "Hello World123\n"
-MAC_ID = chr(12)
+
 
 class top_block(gr.top_block):
 
