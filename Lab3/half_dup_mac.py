@@ -33,8 +33,8 @@ class top_block(gr.top_block):
         ##################################################
         self.freq = freq
         self.samp_rate = 1e6
-        self.rxgain = -10
-        self.txgain = -10
+        self.rxgain = 0
+        self.txgain = 0
 
         ##################################################
         # Blocks
