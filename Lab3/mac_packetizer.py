@@ -53,7 +53,7 @@ class mac_packetizer(gr.basic_block):
             corr = np.correlate(in0.astype(np.int32) * 2 - 1, proto.SYNC_PATTERN_BIPOLAR)
             amax = np.argmax(corr)
             amax_val = corr[amax]
-            tprint( "Amax {} found at {} ...".format(amax_val, amax))
+            tprint("Amax {} found at {} ...".format(amax_val, amax))
 
             # if a lousy match, reset the buffers to try again
             if amax_val < (proto.SYNCLEN_BITS - proto.SYNC_TOLERANCE):
