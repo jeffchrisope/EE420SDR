@@ -177,6 +177,8 @@ class tdd_mac(object):
         self.state = mac.Beacon
         print "Entering MAC beacon mode as ID {} ...".format(id.MAC_ID)
 
+        self.time_TXRX_switch = 0
+
     def set_top_block(self, tb):
         self.tb = tb
 
@@ -190,30 +192,64 @@ class tdd_mac(object):
                 if otherid > id.MAC_ID:
                     print "MAC control:  ceding TX to higher MAC ID ({}), entering RX mode ...".format(otherid)
                     self.state = mac.Normal_RX
+
+                    # One last send of the beacon, to help make sure both sides agree on arbitration
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+
                 else:
                     print "MAC control:  taking TX from lower MAC ID ({}), entering TX mode ...".format(otherid)
                     self.state = mac.Normal_TX
+
+                    # One last send of the beacon, to help make sure both sides agree on arbitration
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+
+            elif payload[0:2] == proto.GEN_PREAMBLE:
+                print "[Payload received in MAC mode: {}]".format(payload)
 
 
     def main_loop(self):
 
         while 1:
+            time_current = time.time()
             if self.state == mac.Beacon:
                 time.sleep(proto.get_beacon_period())
                 self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+
             elif self.state == mac.Normal_TX:
-                self.pktcnt += 1
-                self.tb.send_pkt(proto.build_msg(str(self.pktcnt) + ": " + DATA))
-                time.sleep(.1)
 
+                # Switch over if time elapsed
+                if time_current > self.time_TXRX_switch:
+                    print "Switching to RX mode ..."
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+                    self.state = mac.Normal_RX
+                    continue
+                else:
+                    # Keep sending
+                    self.pktcnt += 1
+                    self.tb.send_pkt(proto.build_msg(str(self.pktcnt) + ": " + DATA))
+                    print "Sending packet {} ...".format(self.pktcnt)
+                    time.sleep(proto.TX_SEND_PERIOD_S)
 
-            ##################################################
-            # Your Mac logic goes here                       #
-            ##################################################
-            # self.pktcnt += 1
-            # self.tb.send_pkt(proto.build_msg(str(self.pktcnt) + ": " + DATA))
-            # time.sleep(0.001)
-            # pass
+            elif self.state == mac.Normal_RX:
+
+                # Switch over if time elapsed
+                if time_current > self.time_TXRX_switch:
+                    print "Switching to TX mode ..."
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+                    self.state = mac.Normal_TX
+                    continue
+
+                pass   # Let worker thread handle
 
     def send_once(self):
         self.tb.send_pkt(self.msg)

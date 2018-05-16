@@ -30,7 +30,9 @@ DATASZ_MAX_BITS = DATASZ_MAX_BYTES * 8
 PKTHDRLEN_BITS = SYNCLEN_BITS + PREAMBLELEN_BITS + DATASZLEN_BITS
 PKTHDRLEN_BYTES = PKTHDRLEN_BITS / 8
 
-BEACON_BASE_PERIOD_MS = 0.2
+BEACON_BASE_PERIOD_S = 0.1
+TXRX_BASE_PERIOD_S = 1
+TX_SEND_PERIOD_S = .2
 
 def build_msg(datastr):
     sz_bytes = len(datastr)
@@ -50,7 +52,7 @@ def extract_datastr(msg):
     return msg[3:]
 
 def get_beacon_period():
-    return BEACON_BASE_PERIOD_MS + (np.random.rand() * 0.1)
+    return BEACON_BASE_PERIOD_S + (np.random.rand() * BEACON_BASE_PERIOD_S)
 
 
 
