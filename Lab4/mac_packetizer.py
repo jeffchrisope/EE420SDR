@@ -4,7 +4,7 @@ from gnuradio import blocks
 from gnuradio import digital
 import numpy as np
 
-import jk_macproto as proto
+import jk_csmaca_macproto as proto
 import scan_state as state
 
 

@@ -7,6 +7,7 @@ import time
 from gnuradio import gr
 from gnuradio import blocks
 from gnuradio import digital
+from gnuradio import uhd
 from gnuradio import eng_notation
 from gnuradio.eng_option import eng_option
 from gnuradio import channels
@@ -15,10 +16,12 @@ import gnuradio.gr.gr_threading as _threading
 from optparse import OptionParser
 
 from mac_packetizer import *
-import jk_macproto as proto
+import jk_csmaca_macproto as proto
+import mac_state as mac
+import IDs as id
 
 DATA = "Hello World123\n"
-
+MAC_ID_STR = chr(id.MAC_ID)
 
 class top_block(gr.top_block):
 
@@ -28,10 +31,10 @@ class top_block(gr.top_block):
         ##################################################
         # Variables
         ##################################################
-        self.freq = freq;
-        self.samp_rate = 1e6;
-        self.rxgain = 0;
-        self.txgain = 0;
+        self.freq = freq
+        self.samp_rate = 1e6
+        self.rxgain = 0
+        self.txgain = 0
 
         ##################################################
         # Blocks
@@ -39,23 +42,35 @@ class top_block(gr.top_block):
         self.txpath = transmit_path()
         self.rxpath = receive_path(rx_callback)
 
-        # Perfect channel
-        self.channel_model = channels.channel_model(
-            noise_voltage=0.0,
-            frequency_offset=0.0,
-            epsilon=1.0,
-            taps=(1.0 + 1.0j,),
-            noise_seed=0,
-            block_tags=False
+        self.uhd_usrp_sink = uhd.usrp_sink(
+            device_addr="",
+            stream_args=uhd.stream_args(
+                cpu_format="fc32",
+                channels=range(1),
+            ),
         )
+        self.uhd_usrp_sink.set_samp_rate(self.samp_rate)
+        self.uhd_usrp_sink.set_center_freq(self.freq, 0)
+        self.uhd_usrp_sink.set_gain(self.rxgain, 0)
+        self.uhd_usrp_sink.set_antenna("J1", 0)
 
-        self.throttle = blocks.throttle(gr.sizeof_char*8, self.samp_rate, True)
+        self.uhd_usrp_source = uhd.usrp_source(
+            device_addr="",
+            stream_args=uhd.stream_args(
+                cpu_format="fc32",
+                channels=range(1),
+            ),
+        )
+        self.uhd_usrp_source.set_samp_rate(self.samp_rate)
+        self.uhd_usrp_source.set_center_freq(self.freq, 0)
+        self.uhd_usrp_source.set_gain(self.txgain, 0)
+        self.uhd_usrp_source.set_antenna("J1", 0)
 
         ##################################################
         # Connections
         ##################################################
-        # self.connect(self.txpath, self.channel_model, self.rxpath)
-        self.connect(self.txpath, self.throttle, self.channel_model, self.rxpath)
+        self.connect(self.txpath, self.uhd_usrp_sink)
+        self.connect(self.uhd_usrp_source, self.rxpath)
 
     def send_pkt(self, payload='', eof=False):
         return self.txpath.send_pkt(payload, eof)
@@ -136,17 +151,14 @@ class receive_path(gr.hier_block2):
             log=False,
         )
 
-        # self.frame_sync = frame_sync(len(MSG) * 8)
         self.packetizer = mac_packetizer()
-        # self.output_unpacked_to_packed = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
-
         self.rcvd_pktq = gr.msg_queue()
         self.message_sink = blocks.message_sink(gr.sizeof_char, self.rcvd_pktq, False)
         self.queue_watcher_thread = _queue_watcher_thread(self.rcvd_pktq, self.callback)
-
-        # self.connect(self, self.demod, self.frame_sync, self.output_unpacked_to_packed, self.message_sink)
         self.connect(self, self.demod, self.packetizer, self.message_sink)
-
+        
+        # self.connect(self, self.demod, self.frame_sync, self.output_unpacked_to_packed, self.message_sink)
+        
         # NoQ version
         # self.output_file_sink = blocks.file_sink(gr.sizeof_char * 1, "output.txt", False)
         # self.output_file_sink.set_unbuffered(True)
@@ -162,6 +174,10 @@ class tdd_mac(object):
     def __init__(self):
         self.tb = None
         self.pktcnt = 0
+        self.state = mac.Beacon
+        print "Entering MAC beacon mode as ID {} ...".format(id.MAC_ID)
+
+        self.time_TXRX_switch = 0
 
     def set_top_block(self, tb):
         self.tb = tb
@@ -170,21 +186,70 @@ class tdd_mac(object):
         # Stuff goes here like:
         # print payload
         print "Payload --> {}".format(proto.extract_datastr(payload))
+        if self.state == mac.Beacon:
+            if payload[0:2] == proto.MAC_PREAMBLE:
+                otherid = ord(payload[3])
+                if otherid > id.MAC_ID:
+                    print "MAC control:  ceding TX to higher MAC ID ({}), entering RX mode ...".format(otherid)
+                    self.state = mac.Normal_RX
+
+                    # One last send of the beacon, to help make sure both sides agree on arbitration
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+
+                else:
+                    print "MAC control:  taking TX from lower MAC ID ({}), entering TX mode ...".format(otherid)
+                    self.state = mac.Normal_TX
+
+                    # One last send of the beacon, to help make sure both sides agree on arbitration
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+                    time.sleep(proto.get_beacon_period())
+                    self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+
+            elif payload[0:2] == proto.GEN_PREAMBLE:
+                print "[Payload received in MAC mode: {}]".format(payload)
+
 
     def main_loop(self):
+
         while 1:
-            ##################################################
-            # Your Mac logic goes here                       #
-            ##################################################
-            # self.tb.send_pkt("Hello World")
-            # time.sleep(5)
-            # The receiver thread automatically handles receiving
-            # time.sleep(5)
-            self.pktcnt += 1
-            self.tb.send_pkt(proto.build_msg(str(self.pktcnt) + ": " + DATA))
-            time.sleep(0.01)
-            # self.tb.send_pkt(proto.build_maccmd(MAC_ID))
-            # time.sleep(0.02)
+            time_current = time.time()
+            if self.state == mac.Beacon:
+                time.sleep(proto.get_beacon_period())
+                self.tb.send_pkt(proto.build_maccmd(MAC_ID_STR))
+
+            elif self.state == mac.Normal_TX:
+
+                # Switch over if time elapsed
+                if time_current > self.time_TXRX_switch:
+                    print "Switching to RX mode ..."
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+                    self.state = mac.Normal_RX
+                    continue
+                else:
+                    # Keep sending
+                    self.pktcnt += 1
+                    self.tb.send_pkt(proto.build_msg(str(self.pktcnt) + ": " + DATA))
+                    print "Sending packet {} ...".format(self.pktcnt)
+                    time.sleep(proto.TX_SEND_PERIOD_S)
+
+            elif self.state == mac.Normal_RX:
+
+                # Switch over if time elapsed
+                if time_current > self.time_TXRX_switch:
+                    print "Switching to TX mode ..."
+                    self.time_TXRX_switch = time.time() + proto.TXRX_BASE_PERIOD_S
+                    self.state = mac.Normal_TX
+                    continue
+
+                pass   # Let worker thread handle
 
     def send_once(self):
         self.tb.send_pkt(self.msg)
