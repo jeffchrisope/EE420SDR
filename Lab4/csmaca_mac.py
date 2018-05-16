@@ -84,20 +84,7 @@ class transmit_path(gr.hier_block2):
                 gr.io_signature(0,0,0),
                 gr.io_signature(1, 1, gr.sizeof_gr_complex))
 
-        # VerA
-        # Create Input Vector here
-        # barker13_uni = [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0]
-        # barker13_wpadding_uni = [0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0]
-        # # sync_pattern = barker13_uni
-        # sync_pattern = barker13_wpadding_uni
-        # s = "Hello World\n"
-        # msg = string_to_list.conv_string_to_1_0_list(s)
-        # input_vector = sync_pattern + msg
-        # self.input_vector_source = blocks.vector_source_b(input_vector, True, 1, [])
-        # self.input_unpacked_to_packed = blocks.unpacked_to_packed_bb(1, gr.GR_MSB_FIRST)
-
-        # VerB
-        self.msgq_limit = msgq_limit = 2
+        self.msgq_limit = msgq_limit = 10
         self.pkt_input = blocks.message_source(gr.sizeof_char, msgq_limit)
 
         self.mod = digital.gfsk_mod(
@@ -108,15 +95,9 @@ class transmit_path(gr.hier_block2):
             log=False,
         )
 
-
-
         ##################################################
         # Connections
         ##################################################
-        # VerA
-        # self.connect(self.input_vector_source, self.input_unpacked_to_packed,  self.mod, self)
-
-        # VerB
         self.connect(self.pkt_input, self.mod, self)
 
 
@@ -174,17 +155,56 @@ class tdd_mac(object):
     def __init__(self):
         self.tb = None
         self.pktcnt = 0
-        self.state = mac.Beacon
-        print "Entering MAC beacon mode as ID {} ...".format(id.MAC_ID)
 
-        self.time_TXRX_switch = 0
+        # Determine which radio we are
+        if (id.MAC_ID == 1):
+            self.RID = 1
+            self.state = mac.R1_TX_Traffic
+        elif (id.MAC_ID == 2):
+            self.RID = 2
+            self.state = mac.R2_SenseOnly
+        else:
+            raise ValueError
+
+        print "Entering exchange as Radio{} ...".format(self.RID)
 
     def set_top_block(self, tb):
         self.tb = tb
 
     def rx_callback(self, payload):
-        # Stuff goes here like:
-        # print payload
+
+        if self.RID == 1:
+            if self.state == mac.R1_TX_Traffic:
+
+
+            if self.state == mac.R1_RX_Sense:
+
+
+
+            if self.state == mac.R1_Decode:
+
+
+            if self.state == mac.R1_END:
+
+
+
+
+
+
+        elif self.RID == 2:
+            if self.state == mac.R2_SenseOnly:
+
+
+            if self.state == mac.R2_TX_Codeword:
+
+
+            if self.state == mac.R2_Listening:
+
+        else:
+            raise ValueError("Bad radio ID in IDs.py.")
+
+
+
         print "Payload --> {}".format(proto.extract_datastr(payload))
         if self.state == mac.Beacon:
             if payload[0:2] == proto.MAC_PREAMBLE:
@@ -220,6 +240,30 @@ class tdd_mac(object):
     def main_loop(self):
 
         while 1:
+            if self.RID == 1:
+                if self.state == mac.R1_TX_Traffic:
+
+                if self.state == mac.R1_RX_Sense:
+
+                if self.state == mac.R1_Decode:
+
+                if self.state == mac.R1_END:
+
+
+
+
+
+
+            elif self.RID == 2:
+                if self.state == mac.R2_SenseOnly:
+
+                if self.state == mac.R2_TX_Codeword:
+
+                if self.state == mac.R2_Listening:
+
+            else:
+                raise ValueError("Bad radio ID in IDs.py.")
+
             time_current = time.time()
             if self.state == mac.Beacon:
                 time.sleep(proto.get_beacon_period())
