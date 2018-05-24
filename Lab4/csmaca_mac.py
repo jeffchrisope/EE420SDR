@@ -126,6 +126,12 @@ class top_block(gr.top_block):
     def clearq(self):
         self.txpath.clearq()
 
+    def isbusy(self):
+        if self.freq_busy == 1:
+            return True
+        else:
+            return False
+
 class transmit_path(gr.hier_block2):
     def __init__(self):
         gr.hier_block2.__init__(self, "transmit_path",
@@ -298,9 +304,7 @@ class tdd_mac(object):
 
             elif self.RID == 2:
                 if self.state == mac.R2_SenseOnly:
-                    # TODO:  add check for energy
-                    self.isbusy = True
-                    if self.isbusy:
+                    if self.tb.isbusy():
                         backoff_time = proto.S1R2_RANDOM_BACKOFF_BASE_TIME_S + (random.random() * proto.S1R2_RANDOM_BACKOFF_RANDOM_FACTOR)
                         print "Channel busy, backing off {} seconds...".format(backoff_time)
                         time.sleep(backoff_time)
