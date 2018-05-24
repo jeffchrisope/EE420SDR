@@ -236,14 +236,22 @@ class tdd_mac(object):
                 print "Detecting possible codeword from R2 ..."
                 self.state = mac.R1_Decode
 
-            elif self.state == mac.R1_Decode:
                 print "Payload received:  {}".format(payload)
-                if payload==proto.CHANGE_CODEWORD:
+                if payload == proto.CHANGE_CODEWORD:
                     print "Codeword detected, entering final state."
                     self.state = mac.R1_END
                 else:
                     print "Wrong codeword, restarting state flow."
                     self.state = mac.R1_TX_Traffic
+
+            # elif self.state == mac.R1_Decode:
+            #     print "Payload received:  {}".format(payload)
+            #     if payload==proto.CHANGE_CODEWORD:
+            #         print "Codeword detected, entering final state."
+            #         self.state = mac.R1_END
+            #     else:
+            #         print "Wrong codeword, restarting state flow."
+            #         self.state = mac.R1_TX_Traffic
 
             elif self.state == mac.R1_END:
                 print "Receiving messages while in final state ... ignoring content."
