@@ -92,12 +92,7 @@ class energydetectorreceive(gr.top_block):
         ##################################################
         # Connections
         ##################################################
-        self.connect((self.blocks_stream_to_vector_0, 0), (self.blocks_probe_signal_vx_0, 0))    
-        self.connect((self.blocks_threshold_ff_2, 0), (self.blocks_stream_to_vector_0, 0))    
-        self.connect((self.blocks_vector_to_stream_2, 0), (self.blocks_threshold_ff_2, 0))    
-        self.connect((self.fftshift_for_logpower_0, 0), (self.blocks_vector_to_stream_2, 0))    
-        self.connect((self.logpwrfft_x_4, 0), (self.fftshift_for_logpower_0, 0))    
-        self.connect((self.uhd_usrp_source_0, 0), (self.logpwrfft_x_4, 0))    
+	self.connect(self.uhd_usrp_source_0, self.logpwrfft_x_4, self.fftshift_for_logpower_0, self.blocks_vector_to_stream_2, self.blocks_threshold_ff_2, self.blocks_stream_to_vector_0, self.blocks_probe_signal_vx_0)
 
 
     def get_variable_function_probe_0(self):
