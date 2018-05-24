@@ -12,7 +12,9 @@ from gnuradio import uhd
 from gnuradio import eng_notation
 from gnuradio.eng_option import eng_option
 from gnuradio import channels
+from gnuradio.fft import logpwrfft
 import gnuradio.gr.gr_threading as _threading
+import threading
 
 from optparse import OptionParser
 
@@ -20,6 +22,9 @@ from mac_packetizer import *
 import jk_csmaca_macproto as proto
 import mac_state as mac
 import IDs as id
+
+sys.path.append(os.environ.get('GRC_HIER_PATH', os.path.expanduser('~/.grc_gnuradio')))
+from fftshift_for_logpower import fftshift_for_logpower  # grc-generated hier_block
 
 DATA = "Hello World123\n"
 MAC_ID_STR = chr(id.MAC_ID)
@@ -36,6 +41,8 @@ class top_block(gr.top_block):
         self.samp_rate = 1e6
         self.rxgain = 0
         self.txgain = 0
+
+        self.freq_busy = 0
 
         ##################################################
         # Blocks
@@ -67,11 +74,51 @@ class top_block(gr.top_block):
         self.uhd_usrp_source.set_gain(self.txgain, 0)
         self.uhd_usrp_source.set_antenna("J1", 0)
 
+        # Frequency collision detection stuff
+        self.blocks_probe_signal_vx_0 = blocks.probe_signal_vf(1024)
+        self.fftshift_for_logpower_0 = fftshift_for_logpower(
+            fft_size=1024,
+        )
+        self.logpwrfft_x_4 = logpwrfft.logpwrfft_c(
+            sample_rate=self.samp_rate,
+            fft_size=1024,
+            ref_scale=2,
+            frame_rate=30,
+            avg_alpha=1,
+            average=True,
+        )
+        self.blocks_vector_to_stream_2 = blocks.vector_to_stream(gr.sizeof_float * 1, 1024)
+        self.blocks_threshold_ff_2 = blocks.threshold_ff(-60, -45, 0)
+        self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_float * 1, 1024)
+
+        # Probe monitor thread routine
+        def _variable_function_probe_0_probe():
+            while True:
+                val = self.blocks_probe_signal_vx_0.level()
+                self.busy = val[512]
+                # print(self.busy)
+                try:
+                    self.set_variable_function_probe_0(val)
+                except AttributeError:
+                    pass
+                time.sleep(1.0 / (10))
+
+        _variable_function_probe_0_thread = threading.Thread(target=_variable_function_probe_0_probe)
+        _variable_function_probe_0_thread.daemon = True
+        _variable_function_probe_0_thread.start()
+
         ##################################################
         # Connections
         ##################################################
-        self.connect(self.txpath, self.uhd_usrp_sink)
+        # self.connect(self.uhd_usrp_source, self.rxpath)
+
         self.connect(self.uhd_usrp_source, self.rxpath)
+        self.connect(self.uhd_usrp_source, self.logpwrfft_x_4, self.fftshift_for_logpower_0,
+                     self.blocks_vector_to_stream_2, self.blocks_threshold_ff_2, self.blocks_stream_to_vector_0,
+                     self.blocks_probe_signal_vx_0)
+
+        self.connect(self.txpath, self.uhd_usrp_sink)
+
 
     def send_pkt(self, payload='', eof=False):
         return self.txpath.send_pkt(payload, eof)
@@ -112,7 +159,6 @@ class transmit_path(gr.hier_block2):
 
     def clearq(self):
         self.pkt_input.msgq().flush()
-
 
 class receive_path(gr.hier_block2):
     def __init__(self, rx_callback):
@@ -284,7 +330,6 @@ class tdd_mac(object):
     def send_once(self):
         self.tb.send_pkt(self.msg)
 
-
 class _queue_watcher_thread(_threading.Thread):
     def __init__(self, rcvd_pktq, callback):
         _threading.Thread.__init__(self)
@@ -333,6 +378,7 @@ def main():
     tb.stop()
     tb.wait()
     # tb.run()
+
 
 
 
