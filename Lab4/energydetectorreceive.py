@@ -20,7 +20,6 @@ import os
 import sys
 sys.path.append(os.environ.get('GRC_HIER_PATH', os.path.expanduser('~/.grc_gnuradio')))
 
-from PyQt4 import Qt
 from fftshift_for_logpower import fftshift_for_logpower  # grc-generated hier_block
 from gnuradio import blocks
 from gnuradio import eng_notation
@@ -34,30 +33,10 @@ import threading
 import time
 
 
-class energydetectorreceive(gr.top_block, Qt.QWidget):
+class energydetectorreceive(gr.top_block):
 
     def __init__(self):
         gr.top_block.__init__(self, "Energydetectorreceive")
-        Qt.QWidget.__init__(self)
-        self.setWindowTitle("Energydetectorreceive")
-        try:
-            self.setWindowIcon(Qt.QIcon.fromTheme('gnuradio-grc'))
-        except:
-            pass
-        self.top_scroll_layout = Qt.QVBoxLayout()
-        self.setLayout(self.top_scroll_layout)
-        self.top_scroll = Qt.QScrollArea()
-        self.top_scroll.setFrameStyle(Qt.QFrame.NoFrame)
-        self.top_scroll_layout.addWidget(self.top_scroll)
-        self.top_scroll.setWidgetResizable(True)
-        self.top_widget = Qt.QWidget()
-        self.top_scroll.setWidget(self.top_widget)
-        self.top_layout = Qt.QVBoxLayout(self.top_widget)
-        self.top_grid_layout = Qt.QGridLayout()
-        self.top_layout.addLayout(self.top_grid_layout)
-
-        self.settings = Qt.QSettings("GNU Radio", "energydetectorreceive")
-        self.restoreGeometry(self.settings.value("geometry").toByteArray())
 
         ##################################################
         # Variables
@@ -107,7 +86,7 @@ class energydetectorreceive(gr.top_block, Qt.QWidget):
             fft_size=1024,
         )
         self.blocks_vector_to_stream_2 = blocks.vector_to_stream(gr.sizeof_float*1, 1024)
-        self.blocks_threshold_ff_2 = blocks.threshold_ff(-100, -85, 0)
+        self.blocks_threshold_ff_2 = blocks.threshold_ff(-60, -45, 0)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_float*1, 1024)
 
         ##################################################
@@ -119,11 +98,6 @@ class energydetectorreceive(gr.top_block, Qt.QWidget):
         self.connect((self.fftshift_for_logpower_0, 0), (self.blocks_vector_to_stream_2, 0))    
         self.connect((self.logpwrfft_x_4, 0), (self.fftshift_for_logpower_0, 0))    
         self.connect((self.uhd_usrp_source_0, 0), (self.logpwrfft_x_4, 0))    
-
-    def closeEvent(self, event):
-        self.settings = Qt.QSettings("GNU Radio", "energydetectorreceive")
-        self.settings.setValue("geometry", self.saveGeometry())
-        event.accept()
 
 
     def get_variable_function_probe_0(self):
@@ -143,21 +117,12 @@ class energydetectorreceive(gr.top_block, Qt.QWidget):
 
 def main(top_block_cls=energydetectorreceive, options=None):
 
-    from distutils.version import StrictVersion
-    if StrictVersion(Qt.qVersion()) >= StrictVersion("4.5.0"):
-        style = gr.prefs().get_string('qtgui', 'style', 'raster')
-        Qt.QApplication.setGraphicsSystem(style)
-    qapp = Qt.QApplication(sys.argv)
 
     tb = top_block_cls()
     tb.start()
-    tb.show()
+    tb.wait()
+    tb.run()
 
-    def quitting():
-        tb.stop()
-        tb.wait()
-    qapp.connect(qapp, Qt.SIGNAL("aboutToQuit()"), quitting)
-    qapp.exec_()
 
 
 if __name__ == '__main__':
