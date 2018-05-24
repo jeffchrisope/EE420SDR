@@ -236,8 +236,8 @@ class tdd_mac(object):
                 print "Detecting possible codeword from R2 ..."
                 self.state = mac.R1_Decode
 
-                print "Payload received:  {}".format(extract_datastr(payload))
-                if extract_datastr(payload) == proto.CHANGE_CODEWORD:
+                print "Payload received:  {}".format(proto.extract_datastr(payload))
+                if proto.extract_datastr(payload) == proto.CHANGE_CODEWORD:
                     print "Codeword detected, entering final state."
                     self.state = mac.R1_END
                 else:
