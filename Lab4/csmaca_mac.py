@@ -226,7 +226,7 @@ class tdd_mac(object):
 
     def rx_callback(self, payload):
 
-        # print "Payload --> {}".format(proto.extract_datastr(payload))
+        print "Payload --> {}".format(proto.extract_datastr(payload))
 
         if self.RID == 1:
             if self.state == mac.R1_TX_Traffic:
