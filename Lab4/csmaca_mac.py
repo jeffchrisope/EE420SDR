@@ -267,7 +267,7 @@ class tdd_mac(object):
                 print "Message received while codeword transmitted ... ignored."
 
             elif self.state == mac.R2_Listening:
-                if payload == proto.FINAL_MSG_CONTENT:
+                if proto.extract_datastr(payload) == proto.FINAL_MSG_CONTENT:
                     print "In final state, final message received."
                 else:
                     print "Change codewords sent, but resposnes not moved to final.  Reverting to initial state."
