@@ -46,7 +46,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>top_block</value>
+      <value>top_block_fec</value>
     </param>
     <param>
       <key>max_nouts</key>
@@ -658,7 +658,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>2</value>
     </param>
     <param>
       <key>epsilon</key>
